@@ -1,7 +1,7 @@
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { deepClone } from './merge';
 import { JSONSchema } from 'zod/v4/core';
-import { fixAllRefs, convertToOpenApi3Point0 } from './utils';
+import { CONTENT_KEYWORDS, fixAllRefs, convertToOpenApi3Point0 } from './utils';
 import {
   DEFS_KEY,
   EMPTY_TYPE_KEY,
@@ -551,6 +551,14 @@ function fixParameter(
   if ('const' in parameter && 'schema' in parameter && parameter.schema) {
     Object.assign(parameter.schema, { const: parameter.const });
     delete parameter.const;
+  }
+
+  for (const keyword of CONTENT_KEYWORDS) {
+    if (keyword in parameter && 'schema' in parameter && parameter.schema) {
+      const root = parameter as unknown as Record<string, unknown>;
+      Object.assign(parameter.schema, { [keyword]: root[keyword] });
+      delete root[keyword];
+    }
   }
 
   if (PARENT_ID_KEY in parameter) {

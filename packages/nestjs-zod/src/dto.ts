@@ -19,7 +19,7 @@ import {
   USES_THREE_POINT_ONE_SYNTAX_KEY,
   TYPE_ARRAY_KEY,
 } from './const';
-import { walkJsonSchema } from './utils';
+import { CONTENT_KEYWORDS, walkJsonSchema } from './utils';
 import { zodV3ToOpenAPI } from './zodV3ToOpenApi';
 import { ioSymbol } from './symbols';
 
@@ -363,6 +363,7 @@ function getSchemaMetadata(jsonSchema: JSONSchema.BaseSchema) {
       schema.const ||
       schema.id ||
       'propertyNames' in schema ||
+      CONTENT_KEYWORDS.some((keyword) => keyword in schema) ||
       typeof schema.exclusiveMinimum === 'number' ||
       typeof schema.exclusiveMaximum === 'number'
     ) {

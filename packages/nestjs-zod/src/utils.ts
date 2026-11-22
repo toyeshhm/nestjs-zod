@@ -41,6 +41,12 @@ export function fixAllRefs({
   );
 }
 
+export const CONTENT_KEYWORDS = [
+  'contentEncoding',
+  'contentMediaType',
+  'contentSchema',
+] as const;
+
 /**
  * By default, zod generates openapi schemas that are compatible with OpenAPI
  * 3.1.  But OpenAPI 3.0 supports a weird flavour of JSONSchema they call the
@@ -59,6 +65,14 @@ export function convertToOpenApi3Point0(schema: JSONSchema.BaseSchema) {
       // `openapi-generator` fail if they come across unrecognized fields
       if ('id' in s) {
         delete s.id;
+      }
+
+      // The `content*` keywords are not valid in OpenAPI 3.0.  `anyOf` members
+      // are included because a nullable member gets merged into `s` below
+      for (const subSchema of [s, ...(s.anyOf ?? [])]) {
+        for (const keyword of CONTENT_KEYWORDS) {
+          delete subSchema[keyword];
+        }
       }
 
       // OpenAPI 3.0 requires `type` to be a single string.  zod >= 4.5 emits

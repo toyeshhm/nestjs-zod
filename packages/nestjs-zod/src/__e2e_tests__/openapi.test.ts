@@ -3598,6 +3598,143 @@ describe('issue#366 - propertyNames and exclusiveMinimum/Maximum in openapi 3.0'
   );
 });
 
+describe('issue#476 - content keywords in openapi 3.0', () => {
+  testMany(
+    'removes content keywords for OpenAPI 3.0',
+    async ({ z, cleanUp }) => {
+      class CredentialDto extends createZodDto(
+        z.object({
+          secret: z.base64(),
+          nullableSecret: z.base64().nullable(),
+          attachment: z.file().mime('image/png'),
+          attachments: z.file().mime(['image/png', 'image/jpeg']),
+        }),
+      ) {}
+
+      @Controller()
+      class CredentialController {
+        @Post()
+        create(@Body() body: CredentialDto) {
+          return body;
+        }
+      }
+
+      const doc = await getSwaggerDoc(CredentialController, { cleanUp });
+      const props = get(doc, 'components.schemas.CredentialDto.properties');
+
+      expect(props?.secret).toEqual({
+        type: 'string',
+        format: 'base64',
+        pattern: expect.any(String),
+      });
+      expect(props?.nullableSecret).toEqual({
+        type: 'string',
+        format: 'base64',
+        pattern: expect.any(String),
+        nullable: true,
+      });
+      expect(props?.attachment).toEqual({
+        type: 'string',
+        format: 'binary',
+      });
+      expect(JSON.stringify(doc)).not.toMatch(
+        /contentEncoding|contentMediaType|contentSchema/,
+      );
+      expect(await getOpenApiErrors(doc, '3.0')).toHaveLength(0);
+    },
+    ['4.0.0', 'latest'],
+  );
+
+  testMany(
+    'removes content keywords from query parameters for OpenAPI 3.0',
+    async ({ z, cleanUp }) => {
+      class CredentialQueryDto extends createZodDto(
+        z.object({
+          secret: z.base64(),
+          nullableSecret: z.base64().nullable(),
+        }),
+      ) {}
+
+      @Controller()
+      class CredentialController {
+        @Get()
+        find(@Query() _query: CredentialQueryDto) {
+          throw new Error();
+        }
+      }
+
+      const doc = await getSwaggerDoc(CredentialController, { cleanUp });
+
+      expect(JSON.stringify(doc)).not.toContain('contentEncoding');
+      expect(await getOpenApiErrors(doc, '3.0')).toHaveLength(0);
+    },
+    ['4.0.0', 'latest'],
+  );
+
+  testMany(
+    'keeps content keywords inside the parameter schema in OpenAPI 3.1',
+    async ({ z, cleanUp }) => {
+      class CredentialQueryDto extends createZodDto(
+        z.object({
+          secret: z.base64(),
+        }),
+      ) {}
+
+      @Controller()
+      class CredentialController {
+        @Get()
+        find(@Query() _query: CredentialQueryDto) {
+          throw new Error();
+        }
+      }
+
+      const doc = await getSwaggerDoc(CredentialController, {
+        cleanUp,
+        version: '3.1',
+      });
+
+      expect(get(doc, 'paths./.get.parameters[0]')).not.toHaveProperty(
+        'contentEncoding',
+      );
+      expect(get(doc, 'paths./.get.parameters[0].schema')).toHaveProperty(
+        'contentEncoding',
+        'base64',
+      );
+      expect(await getOpenApiErrors(doc, '3.1')).toHaveLength(0);
+    },
+    ['4.0.0', 'latest'],
+  );
+
+  testMany(
+    'preserves content keywords in OpenAPI 3.1',
+    async ({ z, cleanUp }) => {
+      class CredentialDto extends createZodDto(
+        z.object({
+          secret: z.base64(),
+        }),
+      ) {}
+
+      @Controller()
+      class CredentialController {
+        @Post()
+        create(@Body() body: CredentialDto) {
+          return body;
+        }
+      }
+
+      const doc = await getSwaggerDoc(CredentialController, {
+        cleanUp,
+        version: '3.1',
+      });
+
+      expect(
+        get(doc, 'components.schemas.CredentialDto.properties.secret'),
+      ).toHaveProperty('contentEncoding', 'base64');
+    },
+    ['4.0.0', 'latest'],
+  );
+});
+
 describe('issue#368', () => {
   testMany(
     'prefix removed from strict objects',
